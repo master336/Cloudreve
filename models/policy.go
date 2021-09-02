@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/HFO4/cloudreve/pkg/cache"
-	"github.com/HFO4/cloudreve/pkg/util"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/jinzhu/gorm"
 )
 
@@ -47,12 +47,16 @@ type PolicyOption struct {
 	FileType []string `json:"file_type"`
 	// MimeType
 	MimeType string `json:"mimetype"`
-
-	// OdRedirect Onedrive重定向地址
+	// OdRedirect Onedrive 重定向地址
 	OdRedirect string `json:"od_redirect,omitempty"`
-
+	// OdProxy Onedrive 反代地址
+	OdProxy string `json:"od_proxy,omitempty"`
+	// OdDriver OneDrive 驱动器定位符
+	OdDriver string `json:"od_driver,omitempty"`
 	// Region 区域代码
 	Region string `json:"region,omitempty"`
+	// ServerSideEndpoint 服务端请求使用的 Endpoint，为空时使用 Policy.Server 字段
+	ServerSideEndpoint string `json:"server_side_endpoint,omitempty"`
 }
 
 var thumbSuffix = map[string][]string{
@@ -266,9 +270,8 @@ func (policy *Policy) GetUploadURL() string {
 	return server.ResolveReference(controller).String()
 }
 
-// UpdateAccessKey 更新 AccessKey
-func (policy *Policy) UpdateAccessKey(key string) error {
-	policy.AccessKey = key
+// SaveAndClearCache 更新并清理缓存
+func (policy *Policy) SaveAndClearCache() error {
 	err := DB.Save(policy).Error
 	policy.ClearCache()
 	return err

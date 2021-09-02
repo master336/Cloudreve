@@ -6,18 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	model "github.com/HFO4/cloudreve/models"
-	"github.com/HFO4/cloudreve/pkg/auth"
-	"github.com/HFO4/cloudreve/pkg/filesystem/fsctx"
-	"github.com/HFO4/cloudreve/pkg/filesystem/response"
-	"github.com/HFO4/cloudreve/pkg/request"
-	"github.com/HFO4/cloudreve/pkg/serializer"
 	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 	"time"
+
+	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/auth"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/response"
+	"github.com/cloudreve/Cloudreve/v3/pkg/request"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 )
 
 // Driver 远程存储策略适配器
@@ -154,6 +155,13 @@ func (handler Driver) Put(ctx context.Context, file io.ReadCloser, dst string, s
 	if err != nil {
 		return err
 	}
+
+	// 决定是否要禁用文件覆盖
+	overwrite := "true"
+	if ctx.Value(fsctx.DisableOverwrite) != nil {
+		overwrite = "false"
+	}
+
 	// 上传文件
 	resp, err := handler.Client.Request(
 		"POST",
@@ -163,6 +171,7 @@ func (handler Driver) Put(ctx context.Context, file io.ReadCloser, dst string, s
 			"Authorization": {credential.Token},
 			"X-Policy":      {credential.Policy},
 			"X-FileName":    {fileName},
+			"X-Overwrite":   {overwrite},
 		}),
 		request.WithContentLength(int64(size)),
 		request.WithTimeout(time.Duration(0)),
@@ -320,7 +329,8 @@ func (handler Driver) getUploadCredential(ctx context.Context, policy serializer
 	// 签名上传策略
 	uploadRequest, _ := http.NewRequest("POST", "/api/v3/slave/upload", nil)
 	uploadRequest.Header = map[string][]string{
-		"X-Policy": {policyEncoded},
+		"X-Policy":    {policyEncoded},
+		"X-Overwrite": {"false"},
 	}
 	auth.SignRequest(handler.AuthInstance, uploadRequest, TTL)
 

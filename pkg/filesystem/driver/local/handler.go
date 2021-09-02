@@ -4,18 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	model "github.com/HFO4/cloudreve/models"
-	"github.com/HFO4/cloudreve/pkg/auth"
-	"github.com/HFO4/cloudreve/pkg/cache"
-	"github.com/HFO4/cloudreve/pkg/conf"
-	"github.com/HFO4/cloudreve/pkg/filesystem/fsctx"
-	"github.com/HFO4/cloudreve/pkg/filesystem/response"
-	"github.com/HFO4/cloudreve/pkg/serializer"
-	"github.com/HFO4/cloudreve/pkg/util"
 	"io"
 	"net/url"
 	"os"
 	"path/filepath"
+
+	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/auth"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/response"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 )
 
 // Driver 本地策略适配器
@@ -99,6 +100,14 @@ func (handler Driver) Put(ctx context.Context, file io.ReadCloser, dst string, s
 	defer file.Close()
 	dst = util.RelativePath(filepath.FromSlash(dst))
 
+	// 如果禁止了 Overwrite，则检查是否有重名冲突
+	if ctx.Value(fsctx.DisableOverwrite) != nil {
+		if util.Exists(dst) {
+			util.Log().Warning("物理同名文件已存在或不可用: %s", dst)
+			return errors.New("物理同名文件已存在或不可用")
+		}
+	}
+
 	// 如果目标目录不存在，创建
 	basePath := filepath.Dir(dst)
 	if !util.Exists(basePath) {
@@ -129,11 +138,14 @@ func (handler Driver) Delete(ctx context.Context, files []string) ([]string, err
 	var retErr error
 
 	for _, value := range files {
-		err := os.Remove(util.RelativePath(filepath.FromSlash(value)))
-		if err != nil {
-			util.Log().Warning("无法删除文件，%s", err)
-			retErr = err
-			deleteFailed = append(deleteFailed, value)
+		filePath := util.RelativePath(filepath.FromSlash(value))
+		if util.Exists(filePath) {
+			err := os.Remove(filePath)
+			if err != nil {
+				util.Log().Warning("无法删除文件，%s", err)
+				retErr = err
+				deleteFailed = append(deleteFailed, value)
+			}
 		}
 
 		// 尝试删除文件的缩略图（如果有）

@@ -5,10 +5,11 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/HFO4/cloudreve/pkg/util"
+	"strings"
+
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 const (
@@ -138,6 +139,13 @@ func GetActiveUserByOpenID(openid string) (User, error) {
 
 // GetUserByEmail 用Email获取用户
 func GetUserByEmail(email string) (User, error) {
+	var user User
+	result := DB.Set("gorm:auto_preload", true).Where("email = ?", email).First(&user)
+	return user, result.Error
+}
+
+// GetActiveUserByEmail 用Email获取可登录用户
+func GetActiveUserByEmail(email string) (User, error) {
 	var user User
 	result := DB.Set("gorm:auto_preload", true).Where("status = ? and email = ?", Active, email).First(&user)
 	return user, result.Error

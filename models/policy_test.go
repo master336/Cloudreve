@@ -2,13 +2,14 @@ package model
 
 import (
 	"encoding/json"
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/HFO4/cloudreve/pkg/cache"
-	"github.com/jinzhu/gorm"
-	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/jinzhu/gorm"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetPolicyByID(t *testing.T) {
@@ -256,7 +257,8 @@ func TestPolicy_UpdateAccessKey(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE(.+)").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
-	err := policy.UpdateAccessKey("123")
+	policy.AccessKey = "123"
+	err := policy.SaveAndClearCache()
 	asserts.NoError(mock.ExpectationsWereMet())
 	asserts.NoError(err)
 }

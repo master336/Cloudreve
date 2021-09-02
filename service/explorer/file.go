@@ -5,14 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	model "github.com/HFO4/cloudreve/models"
-	"github.com/HFO4/cloudreve/pkg/cache"
-	"github.com/HFO4/cloudreve/pkg/filesystem"
-	"github.com/HFO4/cloudreve/pkg/filesystem/driver/local"
-	"github.com/HFO4/cloudreve/pkg/filesystem/fsctx"
-	"github.com/HFO4/cloudreve/pkg/serializer"
-	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,6 +12,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/local"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 )
 
 // SingleFileService 对单文件进行操作的五福，path为文件完整路径
@@ -77,6 +78,7 @@ func (service *SingleFileService) Create(c *gin.Context) serializer.Response {
 	// 上下文
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = context.WithValue(ctx, fsctx.DisableOverwrite, true)
 
 	// 给文件系统分配钩子
 	fs.Use("BeforeUpload", filesystem.HookValidateFile)
@@ -179,6 +181,33 @@ func (service *FileAnonymousGetService) Download(ctx context.Context, c *gin.Con
 
 	return serializer.Response{
 		Code: 0,
+	}
+}
+
+// Source 重定向到文件的有效原始链接
+func (service *FileAnonymousGetService) Source(ctx context.Context, c *gin.Context) serializer.Response {
+	fs, err := filesystem.NewAnonymousFileSystem()
+	if err != nil {
+		return serializer.Err(serializer.CodeGroupNotAllowed, err.Error(), err)
+	}
+	defer fs.Recycle()
+
+	// 查找文件
+	err = fs.SetTargetFileByIDs([]uint{service.ID})
+	if err != nil {
+		return serializer.Err(serializer.CodeNotSet, err.Error(), err)
+	}
+
+	// 获取文件流
+	res, err := fs.SignURL(ctx, &fs.FileTarget[0],
+		int64(model.GetIntSetting("preview_timeout", 60)), false)
+	if err != nil {
+		return serializer.Err(serializer.CodeNotSet, err.Error(), err)
+	}
+
+	return serializer.Response{
+		Code: -302,
+		Data: res,
 	}
 }
 

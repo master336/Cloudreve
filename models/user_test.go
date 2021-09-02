@@ -2,12 +2,13 @@ package model
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/HFO4/cloudreve/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestGetUserByID(t *testing.T) {
@@ -351,10 +352,20 @@ func TestUser_IncreaseStorageWithoutCheck(t *testing.T) {
 	}
 }
 
-func TestGetUserByEmail(t *testing.T) {
+func TestGetActiveUserByEmail(t *testing.T) {
 	asserts := assert.New(t)
 
 	mock.ExpectQuery("SELECT(.+)").WithArgs(Active, "abslant@foxmail.com").WillReturnRows(sqlmock.NewRows([]string{"id", "email"}))
+	_, err := GetActiveUserByEmail("abslant@foxmail.com")
+
+	asserts.Error(err)
+	asserts.NoError(mock.ExpectationsWereMet())
+}
+
+func TestGetUserByEmail(t *testing.T) {
+	asserts := assert.New(t)
+
+	mock.ExpectQuery("SELECT(.+)").WithArgs("abslant@foxmail.com").WillReturnRows(sqlmock.NewRows([]string{"id", "email"}))
 	_, err := GetUserByEmail("abslant@foxmail.com")
 
 	asserts.Error(err)

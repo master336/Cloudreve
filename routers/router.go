@@ -1,15 +1,13 @@
 package routers
 
 import (
-	"github.com/HFO4/cloudreve/bootstrap"
-	"github.com/HFO4/cloudreve/middleware"
-	"github.com/HFO4/cloudreve/pkg/conf"
-	"github.com/HFO4/cloudreve/pkg/hashid"
-	"github.com/HFO4/cloudreve/pkg/util"
-	"github.com/HFO4/cloudreve/routers/controllers"
+	"github.com/cloudreve/Cloudreve/v3/middleware"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
+	"github.com/cloudreve/Cloudreve/v3/pkg/hashid"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
+	"github.com/cloudreve/Cloudreve/v3/routers/controllers"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
@@ -82,8 +80,7 @@ func InitMasterRouter() *gin.Engine {
 		静态资源
 	*/
 	r.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/api/"})))
-	r.Use(middleware.InjectSiteInfo())
-	r.Use(static.Serve("/", bootstrap.StaticFS))
+	r.Use(middleware.FrontendFileHandler())
 	r.GET("manifest.json", controllers.Manifest)
 
 	v3 := r.Group("/api/v3")
@@ -119,16 +116,17 @@ func InitMasterRouter() *gin.Engine {
 		user := v3.Group("user")
 		{
 			// 用户登录
-			user.POST("session", controllers.UserLogin)
+			user.POST("session", middleware.CaptchaRequired("login_captcha"), controllers.UserLogin)
 			// 用户注册
 			user.POST("",
 				middleware.IsFunctionEnabled("register_enabled"),
+				middleware.CaptchaRequired("reg_captcha"),
 				controllers.UserRegister,
 			)
 			// 用二步验证户登录
 			user.POST("2fa", controllers.User2FALogin)
 			// 发送密码重设邮件
-			user.POST("reset", controllers.UserSendReset)
+			user.POST("reset", middleware.CaptchaRequired("forget_captcha"), controllers.UserSendReset)
 			// 通过邮件里的链接重设密码
 			user.PATCH("reset", controllers.UserReset)
 			// 邮件激活
@@ -165,8 +163,10 @@ func InitMasterRouter() *gin.Engine {
 		{
 			file := sign.Group("file")
 			{
-				// 文件外链
+				// 文件外链（直接输出文件数据）
 				file.GET("get/:id/:name", controllers.AnonymousGetContent)
+				// 文件外链(301跳转)
+				file.GET("source/:id/:name", controllers.AnonymousPermLink)
 				// 下載已经打包好的文件
 				file.GET("archive/:id/archive.zip", controllers.DownloadArchive)
 				// 下载文件
@@ -485,7 +485,7 @@ func InitMasterRouter() *gin.Engine {
 				aria2.POST("torrent/:id", middleware.HashID(hashid.FileID), controllers.AddAria2Torrent)
 				// 重新选择要下载的文件
 				aria2.PUT("select/:gid", controllers.SelectAria2File)
-				// 取消下载任务
+				// 取消或删除下载任务
 				aria2.DELETE("task/:gid", controllers.CancelAria2Download)
 				// 获取正在下载中的任务
 				aria2.GET("downloading", controllers.ListDownloading)
@@ -513,6 +513,8 @@ func InitMasterRouter() *gin.Engine {
 				object.POST("copy", controllers.Copy)
 				// 重命名对象
 				object.POST("rename", controllers.Rename)
+				// 获取对象属性
+				object.GET("property/:id", controllers.GetProperty)
 			}
 
 			// 分享

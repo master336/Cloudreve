@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/HFO4/cloudreve/pkg/filesystem"
-	"github.com/HFO4/cloudreve/pkg/filesystem/driver/cos"
-	"github.com/HFO4/cloudreve/pkg/filesystem/driver/local"
-	"github.com/HFO4/cloudreve/pkg/filesystem/driver/onedrive"
-	"github.com/HFO4/cloudreve/pkg/filesystem/driver/s3"
-	"github.com/HFO4/cloudreve/pkg/filesystem/fsctx"
-	"github.com/HFO4/cloudreve/pkg/serializer"
-	"github.com/HFO4/cloudreve/pkg/util"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/cos"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/local"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/onedrive"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/s3"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-gonic/gin"
 )
 
@@ -207,7 +207,15 @@ func (service *OneDriveCallback) PreProcess(c *gin.Context) serializer.Response 
 
 	// 验证与回调会话中是否一致
 	actualPath := strings.TrimPrefix(callbackSession.SavePath, "/")
-	if callbackSession.Size != info.Size || info.GetSourcePath() != actualPath {
+	isSizeCheckFailed := callbackSession.Size != info.Size
+
+	// SharePoint 会对 Office 文档增加 meta data 导致文件大小不一致，这里增加 10 KB 宽容
+	// See: https://github.com/OneDrive/onedrive-api-docs/issues/935
+	if strings.Contains(fs.Policy.OptionsSerialized.OdDriver, "sharepoint.com") && isSizeCheckFailed && (info.Size > callbackSession.Size) && (info.Size-callbackSession.Size <= 10240) {
+		isSizeCheckFailed = false
+	}
+
+	if isSizeCheckFailed || info.GetSourcePath() != actualPath {
 		fs.Handler.(onedrive.Driver).Client.Delete(context.Background(), []string{info.GetSourcePath()})
 		return serializer.Err(serializer.CodeUploadFailed, "文件信息不一致", err)
 	}

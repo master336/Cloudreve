@@ -2,15 +2,16 @@ package controllers
 
 import (
 	"context"
-	"github.com/HFO4/cloudreve/pkg/filesystem"
-	"github.com/HFO4/cloudreve/pkg/filesystem/driver/local"
-	"github.com/HFO4/cloudreve/pkg/filesystem/fsctx"
-	"github.com/HFO4/cloudreve/pkg/serializer"
-	"github.com/HFO4/cloudreve/service/admin"
-	"github.com/HFO4/cloudreve/service/explorer"
-	"github.com/gin-gonic/gin"
 	"net/url"
 	"strconv"
+
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/local"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/cloudreve/Cloudreve/v3/service/admin"
+	"github.com/cloudreve/Cloudreve/v3/service/explorer"
+	"github.com/gin-gonic/gin"
 )
 
 // SlaveUpload 从机文件上传
@@ -69,6 +70,11 @@ func SlaveUpload(c *gin.Context) {
 	fs.Use("AfterUploadCanceled", filesystem.HookDeleteTempFile)
 	fs.Use("AfterUpload", filesystem.SlaveAfterUpload)
 	fs.Use("AfterValidateFailed", filesystem.HookDeleteTempFile)
+
+	// 是否允许覆盖
+	if c.Request.Header.Get("X-Overwrite") == "false" {
+		ctx = context.WithValue(ctx, fsctx.DisableOverwrite, true)
+	}
 
 	// 执行上传
 	err = fs.Upload(ctx, fileData)

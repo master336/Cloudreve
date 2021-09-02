@@ -1,14 +1,16 @@
 package serializer
 
 import (
-	model "github.com/HFO4/cloudreve/models"
-	"github.com/HFO4/cloudreve/pkg/aria2/rpc"
 	"path"
+	"time"
+
+	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/aria2/rpc"
 )
 
 // DownloadListResponse 下载列表响应条目
 type DownloadListResponse struct {
-	UpdateTime     int64          `json:"update"`
+	UpdateTime     time.Time      `json:"update"`
 	UpdateInterval int            `json:"interval"`
 	Name           string         `json:"name"`
 	Status         int            `json:"status"`
@@ -22,6 +24,7 @@ type DownloadListResponse struct {
 // FinishedListResponse 已完成任务条目
 type FinishedListResponse struct {
 	Name       string         `json:"name"`
+	GID        string         `json:"gid"`
 	Status     int            `json:"status"`
 	Dst        string         `json:"dst"`
 	Error      string         `json:"error"`
@@ -29,8 +32,8 @@ type FinishedListResponse struct {
 	Files      []rpc.FileInfo `json:"files"`
 	TaskStatus int            `json:"task_status"`
 	TaskError  string         `json:"task_error"`
-	CreateTime string         `json:"create"`
-	UpdateTime string         `json:"update"`
+	CreateTime time.Time      `json:"create"`
+	UpdateTime time.Time      `json:"update"`
 }
 
 // BuildFinishedListResponse 构建已完成任务条目
@@ -50,14 +53,15 @@ func BuildFinishedListResponse(tasks []model.Download) Response {
 
 		download := FinishedListResponse{
 			Name:       fileName,
+			GID:        tasks[i].GID,
 			Status:     tasks[i].Status,
 			Error:      tasks[i].Error,
 			Dst:        tasks[i].Dst,
 			Total:      tasks[i].TotalSize,
 			Files:      tasks[i].StatusInfo.Files,
 			TaskStatus: -1,
-			UpdateTime: tasks[i].UpdatedAt.Format("2006-01-02 15:04:05"),
-			CreateTime: tasks[i].CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdateTime: tasks[i].UpdatedAt,
+			CreateTime: tasks[i].CreatedAt,
 		}
 
 		if tasks[i].Task != nil {
@@ -89,7 +93,7 @@ func BuildDownloadingResponse(tasks []model.Download) Response {
 		}
 
 		resp = append(resp, DownloadListResponse{
-			UpdateTime:     tasks[i].UpdatedAt.Unix(),
+			UpdateTime:     tasks[i].UpdatedAt,
 			UpdateInterval: interval,
 			Name:           fileName,
 			Status:         tasks[i].Status,

@@ -1,13 +1,14 @@
 package controllers
 
 import (
-	"github.com/HFO4/cloudreve/pkg/aria2"
-	"github.com/HFO4/cloudreve/pkg/email"
-	"github.com/HFO4/cloudreve/pkg/request"
-	"github.com/HFO4/cloudreve/pkg/serializer"
-	"github.com/HFO4/cloudreve/service/admin"
-	"github.com/gin-gonic/gin"
 	"io"
+
+	"github.com/cloudreve/Cloudreve/v3/pkg/aria2"
+	"github.com/cloudreve/Cloudreve/v3/pkg/email"
+	"github.com/cloudreve/Cloudreve/v3/pkg/request"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/cloudreve/Cloudreve/v3/service/admin"
+	"github.com/gin-gonic/gin"
 )
 
 // AdminSummary 获取管理站点概况
@@ -24,7 +25,7 @@ func AdminSummary(c *gin.Context) {
 // AdminNews 获取社区新闻
 func AdminNews(c *gin.Context) {
 	r := request.HTTPClient{}
-	res := r.Request("GET", "https://forum.cloudreve.org/api/discussions?include=startUser%2ClastUser%2CstartPost%2Ctags&filter%5Bq%5D=%20tag%3Anotice&sort=-startTime&", nil)
+	res := r.Request("GET", "https://forum.cloudreve.org/api/discussions?include=startUser%2ClastUser%2CstartPost%2Ctags&filter%5Bq%5D=%20tag%3Anotice&sort=-startTime&page%5Blimit%5D=10", nil)
 	if res.Err == nil {
 		io.Copy(c.Writer, res.Response.Body)
 	}

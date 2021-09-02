@@ -4,17 +4,19 @@ import "C"
 import (
 	"context"
 	"fmt"
-	model "github.com/HFO4/cloudreve/models"
-	"github.com/HFO4/cloudreve/pkg/filesystem"
-	"github.com/HFO4/cloudreve/pkg/filesystem/driver/local"
-	"github.com/HFO4/cloudreve/pkg/filesystem/fsctx"
-	"github.com/HFO4/cloudreve/pkg/request"
-	"github.com/HFO4/cloudreve/pkg/serializer"
-	"github.com/HFO4/cloudreve/service/explorer"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
+
+	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/local"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/request"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/cloudreve/Cloudreve/v3/service/explorer"
+	"github.com/gin-gonic/gin"
 )
 
 func DownloadArchive(c *gin.Context) {
@@ -78,6 +80,29 @@ func AnonymousGetContent(c *gin.Context) {
 	var service explorer.FileAnonymousGetService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Download(ctx, c)
+		if res.Code != 0 {
+			c.JSON(200, res)
+		}
+	} else {
+		c.JSON(200, ErrorResponse(err))
+	}
+}
+
+// AnonymousPermLink 文件签名后的永久链接
+func AnonymousPermLink(c *gin.Context) {
+	// 创建上下文
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var service explorer.FileAnonymousGetService
+	if err := c.ShouldBindUri(&service); err == nil {
+		res := service.Source(ctx, c)
+		// 是否需要重定向
+		if res.Code == -302 {
+			c.Redirect(302, res.Data.(string))
+			return
+		}
+		// 是否有错误发生
 		if res.Code != 0 {
 			c.JSON(200, res)
 		}
@@ -316,6 +341,8 @@ func FileUploadStream(c *gin.Context) {
 	fs.Use("AfterUploadFailed", filesystem.HookGiveBackCapacity)
 
 	// 执行上传
+	ctx = context.WithValue(ctx, fsctx.ValidateCapacityOnceCtx, &sync.Once{})
+	ctx = context.WithValue(ctx, fsctx.DisableOverwrite, true)
 	uploadCtx := context.WithValue(ctx, fsctx.GinCtx, c)
 	err = fs.Upload(uploadCtx, fileData)
 	if err != nil {

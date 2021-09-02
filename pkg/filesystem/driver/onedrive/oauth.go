@@ -3,14 +3,15 @@ package onedrive
 import (
 	"context"
 	"encoding/json"
-	"github.com/HFO4/cloudreve/pkg/cache"
-	"github.com/HFO4/cloudreve/pkg/request"
-	"github.com/HFO4/cloudreve/pkg/util"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/request"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 )
 
 // Error 实现error接口
@@ -159,7 +160,8 @@ func (client *Client) UpdateCredential(ctx context.Context) error {
 	client.Credential = credential
 
 	// 更新存储策略的 RefreshToken
-	client.Policy.UpdateAccessKey(credential.RefreshToken)
+	client.Policy.AccessKey = credential.RefreshToken
+	client.Policy.SaveAndClearCache()
 
 	// 更新缓存
 	cache.Set("onedrive_"+client.ClientID, *credential, int(expires))

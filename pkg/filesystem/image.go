@@ -3,13 +3,14 @@ package filesystem
 import (
 	"context"
 	"fmt"
-	model "github.com/HFO4/cloudreve/models"
-	"github.com/HFO4/cloudreve/pkg/conf"
-	"github.com/HFO4/cloudreve/pkg/filesystem/fsctx"
-	"github.com/HFO4/cloudreve/pkg/filesystem/response"
-	"github.com/HFO4/cloudreve/pkg/thumb"
-	"github.com/HFO4/cloudreve/pkg/util"
 	"strconv"
+
+	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/response"
+	"github.com/cloudreve/Cloudreve/v3/pkg/thumb"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 )
 
 /* ================
@@ -38,8 +39,8 @@ func (fs *FileSystem) GetThumb(ctx context.Context, id uint) (*response.ContentR
 		res.MaxAge = model.GetIntSetting("preview_timeout", 60)
 	}
 
-	// 出错时重新生成缩略图
-	if err != nil {
+	// 本地存储策略出错时重新生成缩略图
+	if err != nil && fs.Policy.Type == "local" {
 		fs.GenerateThumbnail(ctx, &fs.FileTarget[0])
 	}
 
